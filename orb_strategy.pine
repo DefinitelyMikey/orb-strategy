@@ -151,6 +151,8 @@ var bool  sell_invalidated  = false  // body closed above ORB high → sell void
 var bool  buy_invalidated   = false  // body closed below ORB low → buy void
 var bool  sell_retrace_done = false  // after sell break, wick touched back into ORB zone
 var bool  buy_retrace_done  = false  // after buy break, wick touched back into ORB zone
+var int   sell_broken_bar   = na     // bar_index where sell_broken first flipped true
+var int   buy_broken_bar    = na     // bar_index where buy_broken first flipped true
 
 // Session trade counters
 var int   sell_trades  = 0
@@ -176,6 +178,8 @@ if new_session
     buy_invalidated   := false
     sell_retrace_done := false
     buy_retrace_done  := false
+    sell_broken_bar   := na
+    buy_broken_bar    := na
     sell_trades       := 0
     buy_trades        := 0
     gap_session       := false
@@ -201,16 +205,20 @@ if is_orb_bar and not orb_set
 // ─────────────────────────────────────────────────────────────────────────────
 if orb_set and not is_orb_bar and not gap_session
     // Break detection: body (not wick) crosses ORB boundary
-    if not sell_invalidated and body_low_ < orb_low
-        sell_broken := true
-    if not buy_invalidated and body_high_ > orb_high
-        buy_broken := true
+    // Capture bar_index on first flip only — gates retrace to a strictly later bar
+    // so the breakout candle itself can never count as its own retracement
+    if not sell_invalidated and not sell_broken and body_low_ < orb_low
+        sell_broken     := true
+        sell_broken_bar := bar_index
+    if not buy_invalidated and not buy_broken and body_high_ > orb_high
+        buy_broken     := true
+        buy_broken_bar := bar_index
 
-    // Retrace: after a break, any wick touching back into ORB zone counts
+    // Retrace: after a break, on a LATER bar, any wick touching back into ORB zone counts
     // A+ setup = wick reaches orb_mid; Valid setup = wick reaches orb_low/orb_high
-    if sell_broken and not sell_retrace_done and high >= orb_low
+    if sell_broken and not sell_retrace_done and bar_index > sell_broken_bar and high >= orb_low
         sell_retrace_done := true
-    if buy_broken and not buy_retrace_done and low <= orb_high
+    if buy_broken and not buy_retrace_done and bar_index > buy_broken_bar and low <= orb_high
         buy_retrace_done := true
 
     // Invalidation: pre-entry only — body close beyond the opposing ORB level
