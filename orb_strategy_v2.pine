@@ -440,8 +440,8 @@ if buy_signal
         s2_is_long := true
         s2_id      := _id
     entry_count := entry_count + 1
-    label.new(bar_index + 1, (open + close) / 2, cur_grade_long,
-        style=label.style_label_left, color=color.new(grade_col(cur_grade_long), 20),
+    label.new(bar_index, high, cur_grade_long,
+        style=label.style_label_down, color=grade_col(cur_grade_long),
         textcolor=color.white, size=size.small)
 
 // ── Short entry ──────────────────────────────────────────────────────────────
@@ -467,8 +467,8 @@ if sell_signal
         s2_is_long := false
         s2_id      := _id
     entry_count := entry_count + 1
-    label.new(bar_index + 1, (open + close) / 2, cur_grade_short,
-        style=label.style_label_left, color=color.new(grade_col(cur_grade_short), 20),
+    label.new(bar_index, low, cur_grade_short,
+        style=label.style_label_up, color=grade_col(cur_grade_short),
         textcolor=color.white, size=size.small)
 
 // ─────────────────────────────────────────────────────────────────────────────
