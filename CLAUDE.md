@@ -31,8 +31,8 @@ Instruments: MNQ, NQ, ES, MES, MGC.
 
 1. Price breaks **below ORB low** (swing low forms outside ORB range)
 2. Price retraces back up to at least ORB midpoint (A+ condition)
-3. Find most recent **black → blue** candle pair (anywhere in lookback)
-4. Structure level = `min(low of black candle, low of blue candle)` — wick low of either
+3. Find most recent **bearish → bullish** candle pair (anywhere in lookback)
+4. Structure level = `min(low of bearish candle, low of bullish candle)` — wick low of either
 5. **B.O.S. trigger**: candle **body closes below** that structure level
 6. **Invalidation**: any candle body closes **above ORB high** → setup void
 
@@ -40,8 +40,8 @@ Instruments: MNQ, NQ, ES, MES, MGC.
 
 1. Price breaks **above ORB high** (swing high forms outside ORB range)
 2. Price retraces back down to at least ORB midpoint (A+ condition)
-3. Find most recent **blue → black** candle pair (anywhere in lookback)
-4. Structure level = `max(high of blue candle, high of black candle)` — wick high of either
+3. Find most recent **bullish → bearish** candle pair (anywhere in lookback)
+4. Structure level = `max(high of bullish candle, high of bearish candle)` — wick high of either
 5. **B.O.S. trigger**: candle **body closes above** that structure level
 6. **Invalidation**: any candle body closes **below ORB low** → setup void
 
@@ -115,7 +115,7 @@ Instruments: MNQ, NQ, ES, MES, MGC.
 
 - `process_orders_on_close = true` — entry fills at B.O.S. candle close to preserve 1:2 R:R
 - Swing pair scan: look back 100 bars (i=1 to 100) for most recent pair — skip current bar (i=0)
-- Black = bearish (close < open), Blue = bullish (close > open)
+- Bearish = close < open, Bullish = close > open
 - Entry = close, SL = open (works for both short and long B.O.S. candles)
 - Risk = |close − open| of B.O.S. candle
 - Session reset at 18:00 ET (futures new session)

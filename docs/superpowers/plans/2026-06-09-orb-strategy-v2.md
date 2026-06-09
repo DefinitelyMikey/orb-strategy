@@ -388,7 +388,7 @@ git commit -m "feat(v2): swing detection, ORB box, midpoint line, swing markers"
 
 - [ ] **Step 1: Add breakout validation logic**
 
-C1 valid = close outside ORB AND close clears the wick extreme of the last [green,red] (buy) or [red,green] (sell) candle pair.
+C1 valid = close outside ORB AND close clears the wick extreme of the last [bullish,bearish] (buy) or [bearish,bullish] (sell) candle pair.
 C2+ valid = both open AND close outside ORB, on any bar after C1.
 
 ```pine
@@ -398,7 +398,7 @@ C2+ valid = both open AND close outside ORB, on any bar after C1.
 
 if orb_set and not is_orb_bar
 
-    // ── C1 Long: close above ORB high AND clears last [green,red] pair high ──
+    // ── C1 Long: close above ORB high AND clears last [bullish,bearish] pair high ──
     if not brk_c1_long and close > orb_high
         float pair_ext = na
         for i = 1 to 50
@@ -410,7 +410,7 @@ if orb_set and not is_orb_bar
         if not na(pair_ext) and close > pair_ext
             brk_c1_long := true
 
-    // ── C1 Short: close below ORB low AND clears last [red,green] pair low ──
+    // ── C1 Short: close below ORB low AND clears last [bearish,bullish] pair low ──
     if not brk_c1_short and close < orb_low
         float pair_ext = na
         for i = 1 to 50
