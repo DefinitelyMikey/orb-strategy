@@ -401,6 +401,9 @@ if brk_valid_short and pull_short > 0 and pivot_l
 //  BOS ENTRY TRIGGER
 // ─────────────────────────────────────────────────────────────────────────────
 
+float atr14      = ta.atr(14)
+float label_off  = atr14 * 1.5
+
 float body_high = math.max(open, close)
 float body_low  = math.min(open, close)
 bool  bull_bar  = close > open
@@ -440,9 +443,9 @@ if buy_signal
         s2_is_long := true
         s2_id      := _id
     entry_count := entry_count + 1
-    label.new(bar_index, high + syminfo.mintick * 50, cur_grade_long,
+    label.new(bar_index, high + label_off, cur_grade_long,
         style=label.style_label_down, color=grade_col(cur_grade_long),
-        textcolor=color.white, size=size.small)
+        textcolor=color.white, size=size.normal)
 
 // ── Short entry ──────────────────────────────────────────────────────────────
 if sell_signal
@@ -467,9 +470,9 @@ if sell_signal
         s2_is_long := false
         s2_id      := _id
     entry_count := entry_count + 1
-    label.new(bar_index, low - syminfo.mintick * 50, cur_grade_short,
+    label.new(bar_index, low - label_off, cur_grade_short,
         style=label.style_label_up, color=grade_col(cur_grade_short),
-        textcolor=color.white, size=size.small)
+        textcolor=color.white, size=size.normal)
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  BREAKEVEN MANAGEMENT  (move SL to entry when 1:1 RR reached)
