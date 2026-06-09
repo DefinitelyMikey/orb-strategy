@@ -550,14 +550,14 @@ if orb_set and not na(orb_box_obj) and et_hhmm <= i_orb_end
 //  SWING MARKERS  (triangles offset above/below wick so they don't overlap)
 // ─────────────────────────────────────────────────────────────────────────────
 
-float tick_off = syminfo.mintick * 8
+float swing_off = ta.atr(14) * 2.0
 
 if i_show_swing and orb_set and pivot_h
-    label.new(bar_index[i_pivot_lookback], _ph + tick_off, "▲",
+    label.new(bar_index[i_pivot_lookback], _ph + swing_off, "▲",
         style=label.style_none, textcolor=i_col_swing_h, size=size.small)
 
 if i_show_swing and orb_set and pivot_l
-    label.new(bar_index[i_pivot_lookback], _pl - tick_off, "▼",
+    label.new(bar_index[i_pivot_lookback], _pl - swing_off, "▼",
         style=label.style_none, textcolor=i_col_swing_l, size=size.small)
 
 // ─────────────────────────────────────────────────────────────────────────────
