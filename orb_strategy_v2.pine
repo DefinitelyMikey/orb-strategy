@@ -442,9 +442,9 @@ if buy_signal
         s2_id      := _id
     entry_count := entry_count + 1
     if i_show_grade_text
-        label.new(bar_index, high + ta.atr(14) * 4.0, cur_grade_long,
+        label.new(bar_index, high + ta.atr(14) * 3.0, cur_grade_long,
             style=label.style_none, color=color.new(color.black, 100),
-            textcolor=grade_col(cur_grade_long), size=size.normal)
+            textcolor=grade_col(cur_grade_long), size=size.large)
 
 // ── Short entry ──────────────────────────────────────────────────────────────
 if sell_signal
@@ -470,9 +470,9 @@ if sell_signal
         s2_id      := _id
     entry_count := entry_count + 1
     if i_show_grade_text
-        label.new(bar_index, high + ta.atr(14) * 4.0, cur_grade_short,
+        label.new(bar_index, high + ta.atr(14) * 3.0, cur_grade_short,
             style=label.style_none, color=color.new(color.black, 100),
-            textcolor=grade_col(cur_grade_short), size=size.normal)
+            textcolor=grade_col(cur_grade_short), size=size.large)
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  BREAKEVEN MANAGEMENT  (move SL to entry when 1:1 RR reached)
