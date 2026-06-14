@@ -31,7 +31,7 @@
 
 ## Task 1: Skeleton + All Inputs
 
-- [ ] **Inputs:** Backtest Settings (commission/slippage, reference-only), Instrument Rules (8 instruments × max-trades + cutoff), ORB Settings (`i_orb_end`), Visuals (`i_show_levels`, `i_show_volume`, `i_show_vwap`, `i_show_pdhl`, `i_vol_lookback`), Colors (`i_col_orb_box`, `i_col_orb_mid`, `i_col_liq`, `i_col_floor`, `i_col_vwap`, `i_col_pdhl`, `i_col_vol_hi`).
+- [ ] **Inputs:** Backtest Settings (commission/slippage, reference-only), ORB Settings (`i_orb_end`), Visuals (`i_show_levels`, `i_show_volume`, `i_show_vwap`, `i_show_pdhl`, `i_vol_lookback`), Colors (`i_col_orb_box`, `i_col_orb_mid`, `i_col_liq`, `i_col_floor`, `i_col_vwap`, `i_col_pdhl`, `i_col_vol_hi`). Trading rules are global constants (1 trade/day, 8 AM–12 PM ET) — no per-instrument inputs.
 
 > **No** grade inputs, **no** grade colors, **no** swing-marker toggle/colors, **no** pivot-lookback input — all removed.
 
@@ -49,7 +49,7 @@ strategy("ORB Strategy V2", overlay=true, process_orders_on_close=true,
 ## Task 2: Time Utilities, Instrument Detection, ORB Build, State, Reset
 
 - [ ] **Time:** `et_hour` / `et_minute` / `et_hhmm`; `in_orb_window = et_hhmm==800 or 805 or 810`; `new_session = et_hour==18 and et_minute==0`.
-- [ ] **Instrument detection + limits:** `inst_max` / `inst_cut` ternary by ticker; `time_ok = et_hhmm < inst_cut`.
+- [ ] **Trading window + cap (global):** `max_trades = 1`; `time_ok = et_hhmm >= 800 and et_hhmm < 1200`. (No instrument detection — rules are identical for every symbol.)
 - [ ] **ORB build (native 5m):** accumulate `orb_high`/`orb_low` across the three 5m bars in the 08:00–08:15 window (`et_hhmm` 800/805/810); record `orb_anchor = bar_index` at 08:00; latch `orb_set` + `orb_mid` at the 08:10 close. No `request.security` — building from the chart's own bars avoids the cross-timeframe lookahead delay that otherwise captured the prior session's ORB.
 - [ ] **State variables** (the new set):
 
@@ -153,7 +153,7 @@ if bull_brk[1]
 
 ## Task 6: Arm + Lock Trigger Level + Transfer
 
-Arms when breakout + both revisits hold. Floor/ceiling locks to the most recent pair level, then transfers only via piercing wicks (a wick beyond the level whose body does **not** close beyond).
+Arms when breakout + both revisits hold. Floor/ceiling locks to the most recent pair level, then keeps moving via **two** paths (most recent per bar governs): (a) re-sync to each new pair (`pair_rg` / `pair_gr` → up or down), and (b) a piercing wick (a wick beyond the level whose body does **not** close beyond — down for floor, up for ceiling).
 
 ```pine
 if not armed_short and bear_brk and rev_struct_short and rev_orb_short
@@ -161,6 +161,8 @@ if not armed_short and bear_brk and rev_struct_short and rev_orb_short
 if armed_short and not floor_set and not na(rg_low)
     floor_short := rg_low
     floor_set   := true
+if floor_set and pair_rg
+    floor_short := rg_low
 if floor_set and not na(floor_short) and low < floor_short and close >= floor_short
     floor_short := low
 
@@ -169,6 +171,8 @@ if not armed_long and bull_brk and rev_struct_long and rev_orb_long
 if armed_long and not ceil_set and not na(gr_high)
     ceil_long := gr_high
     ceil_set  := true
+if ceil_set and pair_gr
+    ceil_long := gr_high
 if ceil_set and not na(ceil_long) and high > ceil_long and close <= ceil_long
     ceil_long := high
 ```
@@ -186,10 +190,10 @@ bool bull_bar = close > open
 bool bear_bar = close < open
 
 bool s_armed = armed_short and floor_set and not na(floor_short)
-bool sell_signal = s_armed and bear_bar and close < floor_short and entry_count < inst_max and time_ok
+bool sell_signal = s_armed and bear_bar and close < floor_short and entry_count < max_trades and time_ok
 
 bool l_armed = armed_long and ceil_set and not na(ceil_long)
-bool buy_signal = l_armed and bull_bar and close > ceil_long and entry_count < inst_max and time_ok
+bool buy_signal = l_armed and bull_bar and close > ceil_long and entry_count < max_trades and time_ok
 ```
 
 - Entry = `close`; SL = `open` (trigger candle body open); R = `|close-open|`; TP = `close ∓ 2R`.
@@ -220,20 +224,21 @@ if not na(s1_entry) and not s1_be_done and s1_id != ""
 
 ---
 
-## Task 9: Position-Close Handling (Re-Entry Reset)
+## Task 9: Position-Close Handling
 
-On a mid-session close (TP or BE stop-out), clear both BE slots **and** reset both setups + their lines so a fresh setup can build for re-entry. Breakout latches stay true.
+On a mid-session close (TP or BE stop-out), clear both BE slots and reset both setups + their lines. Also set `day_complete := true` — with the 1-trade cap this ends trading and drawing for the day. Breakout latches stay true.
 
 ```pine
 bool pos_closed = strategy.position_size == 0 and
                   strategy.position_size[1] != 0 and
                   not new_session
 if pos_closed
+    day_complete := true
     // clear s1_*/s2_*, armed_*, rev_*, *_set, floor_short/ceil_long,
     // and liq_line_*/floor_line_s/ceil_line_l (→ na)
 ```
 
-- [ ] Commit: `feat(v2): position-close reset for clean re-entry`
+- [ ] Commit: `feat(v2): position-close reset + day_complete`
 
 ---
 
@@ -242,7 +247,7 @@ if pos_closed
 - [ ] **ORB box + midpoint:** drawn on the ORB bar, extended right until `et_hhmm <= i_orb_end`.
 - [ ] **Liquidity line** (per side): drawn after breakout while waiting for the structural revisit; stops once `rev_struct_*` latches.
 - [ ] **Floor / ceiling line** (per side): drawn once locked; `set_y1/set_y2` follow the level as it transfers; `set_x2` extends right.
-- [ ] All level lines gated on `i_show_levels`; colors `i_col_liq` / `i_col_floor`. Lines are handed off to `na` (not deleted) on reset so history persists; `max_lines_count=500`.
+- [ ] All level lines gated on `i_show_levels` **and `not day_complete`** (drawing stops after the day's trade closes); ORB box + midpoint are NOT gated. Colors `i_col_liq` / `i_col_floor`. Lines are handed off to `na` (not deleted) on reset so history persists; `max_lines_count=500`.
 - [ ] Commit: `feat(v2): ORB box/mid + liquidity & floor/ceiling level lines`
 
 ---
@@ -250,7 +255,7 @@ if pos_closed
 ## Task 11: Reference Lines + Volume Context
 
 - [ ] VWAP (`ta.vwap(hlc3)`), PDH/PDL (`request.security("D", high[1]/low[1])`) — all toggle-gated.
-- [ ] Volume context: `bgcolor` highlight on entry bars where `volume > ta.sma(volume, i_vol_lookback)` and `i_show_volume`.
+- [ ] Volume context: `bgcolor` highlight on entry bars where `volume > ta.sma(volume, i_vol_lookback)` and `i_show_volume` and `not day_complete`.
 - [ ] Commit: `feat(v2): VWAP, PDH/PDL, volume-context highlight`
 
 ---
@@ -274,17 +279,18 @@ if pos_closed
 | Dual revisit (structural + ORB band, any order) | Task 5 |
 | Revisit can't be satisfied by the breakout candle | Task 5 (`*_brk[1]` gate) |
 | Floor/ceiling lock at arming | Task 6 |
-| Floor/ceiling wick transfer | Task 6 |
+| Floor/ceiling transfer — re-sync to new pair + piercing-wick bump | Task 6 |
 | Body-close entry trigger | Task 7 |
 | Entry = close, SL = open, TP = 2R | Task 7 |
 | Setup reset at entry (re-arm needs fresh revisit) | Task 7 |
-| BE at 1:1 RR (2 slots) | Task 8 |
-| Re-entry reset on position close | Task 9 |
-| Scale-in (`pyramiding=2`) | Task 7/9 |
-| Per-instrument max trades / cutoff | Task 1/2 |
-| ORB box → `i_orb_end`, midpoint line | Task 10 |
+| BE at 1:1 RR | Task 8 |
+| Position-close reset + `day_complete` | Task 9 |
+| One trade per day, all instruments (`max_trades=1`) | Task 2/7 |
+| Trading window 8 AM–12 PM ET (`time_ok`) | Task 2/7 |
+| Setup drawing stops after trade closes (`day_complete`) | Task 9/10 |
+| ORB box → `i_orb_end`, midpoint line (never gated) | Task 10 |
 | Liquidity + floor/ceiling level lines | Task 10 |
 | VWAP / PDH-PDL / volume context (OFF by default) | Task 11 |
 | All colors user-selectable | Task 1 |
 | Session reset 18:00 ET | Task 2 |
-| **Removed:** grading, pullback depth, pivot swings, swing markers, C1/C2 | n/a |
+| **Removed:** grading, pullback depth, pivot swings, swing markers, C1/C2, per-instrument rules + instrument detection | n/a |

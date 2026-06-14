@@ -14,12 +14,13 @@
 //    3. Revisit  : price must touch BOTH the structural level AND the ORB band
 //                  (any order)
 //    4. Floor    : once revisits done, floor = low of most recent red→green pair
-//    5. Transfer : a wick that pierces the floor but doesn't body-close below it
-//                  moves the floor down to that wick's low; repeat
+//    5. Transfer : floor re-syncs to each new red→green pair (up or down) AND
+//                  moves down on a wick that pierces it without a body-close-below
 //    6. Entry    : a bearish bar body-closes below the valid floor
 //
 //  Trade mgmt: SL = entry candle body open | TP = 2:1 RR | BE at 1:1 RR
-//  Max entries per session: user-adjustable per instrument (default 2)
+//  ONE trade per day (all instruments), taken only between 8:00 AM–12:00 PM ET.
+//  After that trade CLOSES, all setup drawing stops (ORB box/mid keep going).
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,23 +38,8 @@ i_slippage = input.int(
     group="⚙️ Backtest Settings",
     tooltip="Reference only — set via Strategy Settings → Properties → Slippage.")
 
-// ── Instrument Rules ─────────────────────────────────────────────────────────
-i_max_nq  = input.int(2,    "NQ  — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_nq  = input.int(1600, "NQ  — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_mnq = input.int(2,    "MNQ — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_mnq = input.int(1600, "MNQ — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_es  = input.int(2,    "ES  — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_es  = input.int(1600, "ES  — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_mes = input.int(2,    "MES — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_mes = input.int(1600, "MES — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_ym  = input.int(2,    "YM  — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_ym  = input.int(1600, "YM  — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_mym = input.int(2,    "MYM — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_mym = input.int(1600, "MYM — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_gc  = input.int(2,    "GC  — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_gc  = input.int(1600, "GC  — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
-i_max_mgc = input.int(2,    "MGC — Max Trades/Session", minval=1, group="📊 Instrument Rules")
-i_cut_mgc = input.int(1600, "MGC — Time Cutoff (HHMM ET)", minval=0, maxval=2359, group="📊 Instrument Rules")
+// Trading rules are global (same for every instrument): one trade per day,
+// taken only between 8:00 AM and 12:00 PM ET. See TRADING WINDOW + DAILY CAP.
 
 // ── ORB Settings ─────────────────────────────────────────────────────────────
 i_orb_end = input.int(
@@ -96,29 +82,12 @@ bool in_orb_window = et_hhmm == 800 or et_hhmm == 805 or et_hhmm == 810
 bool new_session   = et_hour == 18 and et_minute == 0
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  INSTRUMENT DETECTION + PER-INSTRUMENT LIMITS
+//  TRADING WINDOW + DAILY CAP  (global — identical for every instrument)
+//  One trade per day, taken only between 8:00 AM and 12:00 PM ET.
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool is_mnq = str.contains(syminfo.ticker, "MNQ")
-bool is_nq  = str.contains(syminfo.ticker, "NQ")  and not is_mnq
-bool is_mes = str.contains(syminfo.ticker, "MES")
-bool is_es  = str.contains(syminfo.ticker, "ES")  and not is_mes
-bool is_mym = str.contains(syminfo.ticker, "MYM")
-bool is_ym  = str.contains(syminfo.ticker, "YM")  and not is_mym
-bool is_mgc = str.contains(syminfo.ticker, "MGC")
-bool is_gc  = str.contains(syminfo.ticker, "GC")  and not is_mgc
-
-int inst_max = is_nq  ? i_max_nq  : is_mnq ? i_max_mnq :
-               is_es  ? i_max_es  : is_mes  ? i_max_mes :
-               is_ym  ? i_max_ym  : is_mym  ? i_max_mym :
-               is_gc  ? i_max_gc  : is_mgc  ? i_max_mgc : 2
-
-int inst_cut = is_nq  ? i_cut_nq  : is_mnq ? i_cut_mnq :
-               is_es  ? i_cut_es  : is_mes  ? i_cut_mes :
-               is_ym  ? i_cut_ym  : is_mym  ? i_cut_mym :
-               is_gc  ? i_cut_gc  : is_mgc  ? i_cut_mgc : 1600
-
-bool time_ok = et_hhmm < inst_cut
+int  max_trades = 1
+bool time_ok    = et_hhmm >= 800 and et_hhmm < 1200
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  STATE VARIABLES
@@ -157,6 +126,9 @@ var float ceil_long      = na
 
 // Session trade counter
 var int entry_count = 0
+
+// True once the day's one trade has CLOSED — suppresses further setup drawing
+var bool day_complete = false
 
 // BE management — slot 1 and slot 2 (max 2 simultaneous via pyramiding=2)
 var float  s1_entry   = na
@@ -206,6 +178,7 @@ if new_session
     floor_short      := na
     ceil_long        := na
     entry_count      := 0
+    day_complete     := false
     s1_entry         := na
     s1_sl            := na
     s1_tp            := na
@@ -292,10 +265,13 @@ if bull_brk[1]
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ARM + LOCK TRIGGER LEVEL + TRANSFER
-//  Short floor = low of most recent red→green pair, locked at arming;
-//    transfers DOWN on any wick that pierces it without a body-close-below.
-//  Long ceiling = high of most recent green→red pair, locked at arming;
-//    transfers UP on any wick that pierces it without a body-close-above.
+//  Short floor  = low of most recent red→green pair; locked at arming, then
+//    (a) re-syncs to each new red→green pair (up or down), and
+//    (b) transfers DOWN on any wick that pierces it without a body-close-below.
+//  Long ceiling = high of most recent green→red pair; locked at arming, then
+//    (a) re-syncs to each new green→red pair (up or down), and
+//    (b) transfers UP on any wick that pierces it without a body-close-above.
+//  Re-sync runs first; the later event on a given bar governs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 if not armed_short and bear_brk and rev_struct_short and rev_orb_short
@@ -303,6 +279,8 @@ if not armed_short and bear_brk and rev_struct_short and rev_orb_short
 if armed_short and not floor_set and not na(rg_low)
     floor_short := rg_low
     floor_set   := true
+if floor_set and pair_rg
+    floor_short := rg_low
 if floor_set and not na(floor_short) and low < floor_short and close >= floor_short
     floor_short := low
 
@@ -311,6 +289,8 @@ if not armed_long and bull_brk and rev_struct_long and rev_orb_long
 if armed_long and not ceil_set and not na(gr_high)
     ceil_long := gr_high
     ceil_set  := true
+if ceil_set and pair_gr
+    ceil_long := gr_high
 if ceil_set and not na(ceil_long) and high > ceil_long and close <= ceil_long
     ceil_long := high
 
@@ -323,12 +303,12 @@ bool bear_bar = close < open
 
 bool s_armed = armed_short and floor_set and not na(floor_short)
 bool s_trig  = bear_bar and close < floor_short
-bool s_room  = entry_count < inst_max and time_ok
+bool s_room  = entry_count < max_trades and time_ok
 bool sell_signal = s_armed and s_trig and s_room
 
 bool l_armed = armed_long and ceil_set and not na(ceil_long)
 bool l_trig  = bull_bar and close > ceil_long
-bool l_room  = entry_count < inst_max and time_ok
+bool l_room  = entry_count < max_trades and time_ok
 bool buy_signal = l_armed and l_trig and l_room
 
 // ── Long entry ───────────────────────────────────────────────────────────────
@@ -423,6 +403,7 @@ bool pos_closed = strategy.position_size == 0 and
                   not new_session
 
 if pos_closed
+    day_complete     := true
     s1_entry         := na
     s1_sl            := na
     s1_tp            := na
@@ -467,7 +448,7 @@ if orb_set and not na(orb_box_obj) and et_hhmm <= i_orb_end
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Short liquidity level (the structural high to revisit) — drawn until revisited
-if i_show_levels and bear_brk and not rev_struct_short and not na(gr_high)
+if i_show_levels and not day_complete and bear_brk and not rev_struct_short and not na(gr_high)
     if na(liq_line_s)
         liq_line_s := line.new(bar_index, gr_high, bar_index + 1, gr_high,
             color=i_col_liq, style=line.style_dashed, width=1)
@@ -477,7 +458,7 @@ if i_show_levels and bear_brk and not rev_struct_short and not na(gr_high)
         line.set_x2(liq_line_s, bar_index + 1)
 
 // Short floor (trigger) — drawn + transferred while armed
-if i_show_levels and floor_set and not na(floor_short)
+if i_show_levels and not day_complete and floor_set and not na(floor_short)
     if na(floor_line_s)
         floor_line_s := line.new(bar_index, floor_short, bar_index + 1, floor_short,
             color=i_col_floor, style=line.style_dashed, width=1)
@@ -487,7 +468,7 @@ if i_show_levels and floor_set and not na(floor_short)
         line.set_x2(floor_line_s, bar_index + 1)
 
 // Long liquidity level (the structural low to revisit) — drawn until revisited
-if i_show_levels and bull_brk and not rev_struct_long and not na(rg_low)
+if i_show_levels and not day_complete and bull_brk and not rev_struct_long and not na(rg_low)
     if na(liq_line_l)
         liq_line_l := line.new(bar_index, rg_low, bar_index + 1, rg_low,
             color=i_col_liq, style=line.style_dashed, width=1)
@@ -497,7 +478,7 @@ if i_show_levels and bull_brk and not rev_struct_long and not na(rg_low)
         line.set_x2(liq_line_l, bar_index + 1)
 
 // Long ceiling (trigger) — drawn + transferred while armed
-if i_show_levels and ceil_set and not na(ceil_long)
+if i_show_levels and not day_complete and ceil_set and not na(ceil_long)
     if na(ceil_line_l)
         ceil_line_l := line.new(bar_index, ceil_long, bar_index + 1, ceil_long,
             color=i_col_floor, style=line.style_dashed, width=1)
@@ -531,5 +512,5 @@ plot(i_show_pdhl ? pdl_val : na, "PDL",
 float vol_avg   = ta.sma(volume, i_vol_lookback)
 bool  vol_spike = volume > vol_avg
 
-bgcolor(i_show_volume and (buy_signal or sell_signal) and vol_spike
+bgcolor(i_show_volume and not day_complete and (buy_signal or sell_signal) and vol_spike
     ? color.new(i_col_vol_hi, 75) : na)
