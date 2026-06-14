@@ -42,7 +42,7 @@ strategy("ORB Strategy V3", overlay=true, process_orders_on_close=true,
 ```
 
 - [ ] Paste into TradingView (MNQ1! 5m) → 0 compile errors, empty chart.
-- [ ] Commit: `feat(v2): script skeleton and input declarations`
+- [ ] Commit: `feat(v3): script skeleton and input declarations`
 
 ---
 
@@ -83,7 +83,7 @@ var int entry_count = 0
 
 - [ ] **Session reset (`if new_session`)** clears every var above (levels → na, flags → false, lines → na, `entry_count := 0`).
 - [ ] **ORB build:** at `et_hhmm==800` start `orb_high/low` + record `orb_anchor`; at 805/810 fold in `max(high)`/`min(low)`; at 810 set `orb_mid` and latch `orb_set := true`. Downstream logic is gated on `not in_orb_window`, so the build bars never trigger signals.
-- [ ] Commit: `feat(v2): time utils, native ORB build, state vars, session reset`
+- [ ] Commit: `feat(v3): time utils, native ORB build, state vars, session reset`
 
 ---
 
@@ -104,7 +104,7 @@ if pair_rg
     rg_low  := math.min(low,  low[1])
 ```
 
-- [ ] Commit: `feat(v2): green→red / red→green candle-pair level tracking`
+- [ ] Commit: `feat(v3): green→red / red→green candle-pair level tracking`
 
 ---
 
@@ -125,7 +125,7 @@ if orb_set and not in_orb_window
 ```
 
 - [ ] Verify with a temporary `plotshape(bear_brk, ...)`, then remove.
-- [ ] Commit: `feat(v2): two-consecutive-close breakout latch`
+- [ ] Commit: `feat(v3): two-consecutive-close breakout latch`
 
 ---
 
@@ -147,7 +147,7 @@ if bull_brk[1]
         rev_orb_long := true
 ```
 
-- [ ] Commit: `feat(v2): dual-revisit gate (structural + ORB band)`
+- [ ] Commit: `feat(v3): dual-revisit gate (structural + ORB band)`
 
 ---
 
@@ -177,7 +177,7 @@ if ceil_set and not na(ceil_long) and high > ceil_long and close <= ceil_long
     ceil_long := high
 ```
 
-- [ ] Commit: `feat(v2): arm + floor/ceiling lock + wick transfer`
+- [ ] Commit: `feat(v3): arm + floor/ceiling lock + wick transfer`
 
 ---
 
@@ -202,7 +202,7 @@ bool buy_signal = l_armed and bull_bar and close > ceil_long and entry_count < m
 > No grade labels are drawn — entries use TradingView's built-in markers.
 
 - [ ] Verify entries only fire after a completed setup; check Strategy Tester.
-- [ ] Commit: `feat(v2): body-close entry trigger + per-entry setup reset`
+- [ ] Commit: `feat(v3): body-close entry trigger + per-entry setup reset`
 
 ---
 
@@ -220,7 +220,7 @@ if not na(s1_entry) and not s1_be_done and s1_id != ""
 // (s2_* mirror)
 ```
 
-- [ ] Commit: `feat(v2): breakeven management at 1:1 RR`
+- [ ] Commit: `feat(v3): breakeven management at 1:1 RR`
 
 ---
 
@@ -238,7 +238,7 @@ if pos_closed
     // and liq_line_*/floor_line_s/ceil_line_l (→ na)
 ```
 
-- [ ] Commit: `feat(v2): position-close reset + day_complete`
+- [ ] Commit: `feat(v3): position-close reset + day_complete`
 
 ---
 
@@ -248,7 +248,7 @@ if pos_closed
 - [ ] **Liquidity line** (per side): drawn after breakout while waiting for the structural revisit; stops once `rev_struct_*` latches.
 - [ ] **Floor / ceiling line** (per side): drawn once locked; `set_y1/set_y2` follow the level as it transfers; `set_x2` extends right.
 - [ ] All level lines gated on `i_show_levels` **and `not day_complete`** (drawing stops after the day's trade closes); ORB box + midpoint are NOT gated. Colors `i_col_liq` / `i_col_floor`. Lines are handed off to `na` (not deleted) on reset so history persists; `max_lines_count=500`.
-- [ ] Commit: `feat(v2): ORB box/mid + liquidity & floor/ceiling level lines`
+- [ ] Commit: `feat(v3): ORB box/mid + liquidity & floor/ceiling level lines`
 
 ---
 
@@ -256,7 +256,7 @@ if pos_closed
 
 - [ ] VWAP (`ta.vwap(hlc3)`), PDH/PDL (`request.security("D", high[1]/low[1])`) — all toggle-gated.
 - [ ] Volume context: `bgcolor` highlight on entry bars where `volume > ta.sma(volume, i_vol_lookback)` and `i_show_volume` and `not day_complete`.
-- [ ] Commit: `feat(v2): VWAP, PDH/PDL, volume-context highlight`
+- [ ] Commit: `feat(v3): VWAP, PDH/PDL, volume-context highlight`
 
 ---
 
