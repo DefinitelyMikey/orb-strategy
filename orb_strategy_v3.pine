@@ -1,7 +1,7 @@
 //@version=6
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  ORB Strategy V2  |  Pine Script v6
+//  ORB Strategy V3  |  Pine Script v6
 //  Chart     : 5-minute
 //  ORB Source: 8:00–8:15 AM ET window, built natively from three 5m bars
 //  Session   : 8:00 AM ET open  |  Reset: 18:00 ET
@@ -65,7 +65,7 @@ i_col_vwap    = input.color(color.new(color.purple, 0), "VWAP",             grou
 i_col_pdhl    = input.color(color.new(color.gray,   0), "Prior Day H/L",    group="🎨 Colors")
 i_col_vol_hi  = input.color(color.new(color.yellow, 0), "Volume Spike",     group="🎨 Colors")
 
-strategy("ORB Strategy V2", overlay=true, process_orders_on_close=true,
+strategy("ORB Strategy V3", overlay=true, process_orders_on_close=true,
     pyramiding=2, max_bars_back=500, max_lines_count=500,
     default_qty_type=strategy.fixed, default_qty_value=1)
 

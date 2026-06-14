@@ -169,7 +169,7 @@ The `i_commission` and `i_slippage` inputs in the script are retained as referen
 
 ---
 
-## 11. V2 Script Notes
+## 11. V3 Script Notes
 
 Signal engine rewritten 2026-06-10. The old grading/pullback-depth/pivot-sweep system was removed entirely.
 

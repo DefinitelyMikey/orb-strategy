@@ -1,8 +1,8 @@
-# ORB Strategy V2 Implementation Plan
+# ORB Strategy V3 Implementation Plan
 
-> **Revised 2026-06-10.** The original plan (grading A/B/C/2B/2C + pullback-depth + C1/C2 breakout + 3-bar pivot swings) was **superseded**. The signal engine was rewritten to a **breakout → dual-revisit → floor/ceiling-transfer** model with no grading. This document reflects the engine as actually shipped in `orb_strategy_v2.pine`.
+> **Revised 2026-06-10.** The original plan (grading A/B/C/2B/2C + pullback-depth + C1/C2 breakout + 3-bar pivot swings) was **superseded**. The signal engine was rewritten to a **breakout → dual-revisit → floor/ceiling-transfer** model with no grading. This document reflects the engine as actually shipped in `orb_strategy_v3.pine`.
 
-**Goal:** `orb_strategy_v2.pine` — a Pine Script v6 strategy that trades 5m ORB breakouts using a two-consecutive-close breakout, a dual-revisit gate (structural level + ORB band), and a transferring floor/ceiling trigger, with per-instrument trade limits and a level-line visual suite.
+**Goal:** `orb_strategy_v3.pine` — a Pine Script v6 strategy that trades 5m ORB breakouts using a two-consecutive-close breakout, a dual-revisit gate (structural level + ORB band), and a transferring floor/ceiling trigger, with per-instrument trade limits and a level-line visual suite.
 
 **Architecture:** Single Pine Script file on a 5m chart. The ORB is built natively from the three 5m bars in the 08:00–08:15 window (no `request.security` — that introduced a cross-timeframe lookahead delay that captured the prior session's ORB). State in `var` variables reset on the 18:00 ET session boundary. Entries/exits via `strategy.entry()` / `strategy.exit()` with `process_orders_on_close=true`, `pyramiding=2`, `max_lines_count=500`.
 
@@ -24,7 +24,7 @@
 
 | File | Action | Responsibility |
 |------|--------|---------------|
-| `orb_strategy_v2.pine` | Create / maintain | Entire V2 strategy — single file |
+| `orb_strategy_v3.pine` | Create / maintain | Entire V3 strategy — single file |
 | `CLAUDE.md` | Spec of record | Sections 1–11 describe the shipped engine |
 
 ---
@@ -36,7 +36,7 @@
 > **No** grade inputs, **no** grade colors, **no** swing-marker toggle/colors, **no** pivot-lookback input — all removed.
 
 ```pine
-strategy("ORB Strategy V2", overlay=true, process_orders_on_close=true,
+strategy("ORB Strategy V3", overlay=true, process_orders_on_close=true,
     pyramiding=2, max_bars_back=500, max_lines_count=500,
     default_qty_type=strategy.fixed, default_qty_value=1)
 ```
