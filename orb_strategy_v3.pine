@@ -47,6 +47,18 @@ i_orb_end = input.int(
     group="📐 ORB Settings",
     tooltip="ORB box and midpoint line extend rightward until this time. Default 17:00 ET.")
 
+i_move_sl_to_be = input.bool(true, "Move SL to Breakeven at 1R", group="📐 ORB Settings",
+    tooltip="When OFF, the stop loss stays at its original level for the entire trade (no move to entry at 1:1 RR).")
+
+i_custom_sl_tp = input.bool(false, "Enable Custom SL/TP Multiples", group="📐 ORB Settings",
+    tooltip="When ON, SL and TP are set as user-defined multiples of the trigger candle's range (|close-open|), overriding the default SL=candle open / TP=2R.")
+
+i_sl_mult = input.float(1.0, "SL Multiple (x candle range)", minval=0.01, step=0.1, group="📐 ORB Settings",
+    tooltip="Only used when 'Enable Custom SL/TP Multiples' is ON.")
+
+i_tp_mult = input.float(2.0, "TP Multiple (x candle range)", minval=0.01, step=0.1, group="📐 ORB Settings",
+    tooltip="Only used when 'Enable Custom SL/TP Multiples' is ON.")
+
 // ── Visuals ───────────────────────────────────────────────────────────────────
 i_show_levels = input.bool(true,  "Show Level Lines (liquidity + floor/ceiling)", group="👁 Visuals")
 i_show_volume = input.bool(false, "Show Volume Context",     group="👁 Visuals")
@@ -316,8 +328,8 @@ bool buy_signal = l_armed and l_trig and l_room
 // ── Long entry ───────────────────────────────────────────────────────────────
 if buy_signal
     float _r  = math.abs(close - open)
-    float _sl = open
-    float _tp = close + 2.0 * _r
+    float _sl = i_custom_sl_tp ? close - i_sl_mult * _r : open
+    float _tp = i_custom_sl_tp ? close + i_tp_mult * _r : close + 2.0 * _r
     string _id = "L" + str.tostring(entry_count + 1)
     strategy.entry(_id, strategy.long)
     strategy.exit(_id + "x", _id, stop=_sl, limit=_tp)
@@ -348,8 +360,8 @@ if buy_signal
 // ── Short entry ──────────────────────────────────────────────────────────────
 if sell_signal
     float _r  = math.abs(close - open)
-    float _sl = open
-    float _tp = close - 2.0 * _r
+    float _sl = i_custom_sl_tp ? close + i_sl_mult * _r : open
+    float _tp = i_custom_sl_tp ? close - i_tp_mult * _r : close - 2.0 * _r
     string _id = "S" + str.tostring(entry_count + 1)
     strategy.entry(_id, strategy.short)
     strategy.exit(_id + "x", _id, stop=_sl, limit=_tp)
@@ -378,17 +390,24 @@ if sell_signal
     floor_line_s     := na
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  EOD FLATTEN  (force-close any open position by 4:45 PM ET)
+// ─────────────────────────────────────────────────────────────────────────────
+
+if et_hhmm == 1645 and strategy.position_size != 0
+    strategy.close_all(comment="EOD Flatten")
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  BREAKEVEN MANAGEMENT  (move SL to entry when 1:1 RR reached)
 // ─────────────────────────────────────────────────────────────────────────────
 
-if not na(s1_entry) and not s1_be_done and s1_id != ""
+if i_move_sl_to_be and not na(s1_entry) and not s1_be_done and s1_id != ""
     float _r  = math.abs(s1_entry - s1_sl)
     bool  hit = s1_is_long ? high >= s1_entry + _r : low <= s1_entry - _r
     if hit
         strategy.exit(s1_id + "x", s1_id, stop=s1_entry, limit=s1_tp)
         s1_be_done := true
 
-if not na(s2_entry) and not s2_be_done and s2_id != ""
+if i_move_sl_to_be and not na(s2_entry) and not s2_be_done and s2_id != ""
     float _r  = math.abs(s2_entry - s2_sl)
     bool  hit = s2_is_long ? high >= s2_entry + _r : low <= s2_entry - _r
     if hit

@@ -54,14 +54,24 @@ These do double duty: a short's structural level = `gr_high` and its floor = `rg
 The **trigger candle** is the bar that body-closes beyond the valid floor (short) / ceiling (long).
 
 - **Entry**: close of the trigger candle (`process_orders_on_close = true`)
-- **Stop loss**: body open of the trigger candle
+- **Stop loss**: body open of the trigger candle (default)
   - Short trigger is bearish → open is above the close → SL sits above entry ✓
   - Long trigger is bullish → open is below the close → SL sits below entry ✓
 - **Risk (R)**: `|close − open|` of the trigger candle
-- **Target**: 2R (`close ∓ 2R`)
+- **Target**: 2R (`close ∓ 2R`) (default)
 - **Trade management**:
-  - At **1R**: move SL to breakeven (entry price)
+  - At **1R**: move SL to breakeven (entry price) — toggleable, see Section 7
   - At **2R**: full exit (all-in / all-out)
+  - **4:45 PM ET**: any open position is force-flattened (EOD flatten), see Section 4
+
+### Custom SL/TP Multiples (optional)
+
+When **Enable Custom SL/TP Multiples** is ON (default OFF), the fixed SL=open / TP=2R rule above is replaced:
+
+- **Stop loss**: `entry ∓ (SL Multiple × R)` where `R = |close − open|` of the trigger candle
+- **Take profit**: `entry ± (TP Multiple × R)`
+- Defaults for the multiples (1.0 / 2.0) reproduce the original SL=open / TP=2R behavior exactly
+- Breakeven distance (`|entry − SL|`) automatically scales with the SL Multiple, so the 1R breakeven trigger stays consistent with the custom stop
 
 ---
 
@@ -71,6 +81,7 @@ The **trigger candle** is the bar that body-closes beyond the valid floor (short
 |------|-------|
 | Max trades per day | **1** (all instruments) |
 | Trading window | **8:00 AM – 12:00 PM ET** (`et_hhmm >= 800 and et_hhmm < 1200`) |
+| EOD flatten | Any open position is force-closed at **4:45 PM ET** (`et_hhmm == 1645`) via `strategy.close_all()` |
 | After the day's trade closes | all setup drawing stops (ORB box/midpoint keep extending) |
 
 Rules are identical for every instrument — no per-instrument max-trades or time-cutoff settings.
@@ -106,6 +117,10 @@ Rules are identical for every instrument — no per-instrument max-trades or tim
 | Commission per side ($) | Backtest Settings | 2.00 (reference only) |
 | Slippage (ticks) | Backtest Settings | 1 (reference only) |
 | ORB Box End Time (HHMM ET) | ORB Settings | 1700 |
+| Move SL to Breakeven at 1R | ORB Settings | ON |
+| Enable Custom SL/TP Multiples | ORB Settings | OFF |
+| SL Multiple (x candle range) | ORB Settings | 1.0 |
+| TP Multiple (x candle range) | ORB Settings | 2.0 |
 | Show Level Lines | Visuals | ON |
 | Show Volume Context | Visuals | OFF |
 | Show VWAP | Visuals | OFF |
@@ -181,7 +196,9 @@ Signal engine rewritten 2026-06-10. The old grading/pullback-depth/pivot-sweep s
 - **Entry**: directional bar body-closes beyond the valid floor/ceiling, gated on `entry_count < max_trades` (=1) and `time_ok` (8:00 AM–12:00 PM ET)
 - **One trade per day**: `max_trades = 1`, global for all instruments. The old per-instrument max-trades / time-cutoff inputs and the instrument-detection block were removed
 - **Drawing stops on exit**: `day_complete` flips true on `pos_closed`; liquidity / floor / ceiling lines + volume highlight are gated on `not day_complete`. ORB box + midpoint are NOT gated
-- **BE management**: tracks up to 2 slots via `s1_*` / `s2_*` vars; BE moves stop to entry at 1:1 RR (with a 1-trade cap, only slot 1 is ever used)
+- **BE management**: tracks up to 2 slots via `s1_*` / `s2_*` vars; BE moves stop to entry at 1:1 RR (with a 1-trade cap, only slot 1 is ever used); gated on `i_move_sl_to_be` (default ON) — when OFF, the original SL placed at entry is never moved
+- **Custom SL/TP multiples**: gated on `i_custom_sl_tp` (default OFF). When ON, `_sl`/`_tp` at entry are computed as `close ∓ i_sl_mult * _r` / `close ± i_tp_mult * _r` instead of `open` / `close ± 2*_r`. Defaults (1.0 / 2.0) reproduce original behavior. Composes cleanly with `i_move_sl_to_be` — BE distance (`|entry - sl|`) scales with `i_sl_mult` automatically
+- **EOD flatten**: `if et_hhmm == 1645 and strategy.position_size != 0: strategy.close_all()`, placed after entries and before BE management; forces any open position closed by 4:45 PM ET regardless of SL/TP/BE state
 - `new_session = et_hour == 18 and et_minute == 0` — same as V1
 - Commission/slippage: set in TradingView Properties tab (same as V1)
 - **Removed**: grade inputs/colors/labels, `grade_str()`, `grade_col()`, pullback-depth vars, `ta.pivothigh/pivotlow` swing detection, swing markers, old C1/C2 breakout rules
