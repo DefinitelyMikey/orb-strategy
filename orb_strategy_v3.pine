@@ -8,7 +8,7 @@
 //  Instruments: NQ, MNQ, ES, MES, YM, MYM, GC, MGC
 //
 //  Entry logic (short; long mirrors):
-//    1. Breakout : two CONSECUTIVE bearish bars both body-close below ORB low
+//    1. Breakout : two CONSECUTIVE bars both body-close below ORB low (any color)
 //    2. Liquidity: structural level = high of most recent green→red pair
 //                  (falls back to the most recent pre-8AM green→red high)
 //    3. Revisit  : price must touch BOTH the structural level AND the ORB band
@@ -236,10 +236,12 @@ if pair_rg
 // ─────────────────────────────────────────────────────────────────────────────
 
 if orb_set and not in_orb_window
-    bool bear_now  = close   < orb_low  and close   < open
-    bool bear_prev = close[1] < orb_low and close[1] < open[1]
-    bool bull_now  = close   > orb_high and close   > open
-    bool bull_prev = close[1] > orb_high and close[1] > open[1]
+    // Two consecutive body-closes beyond the ORB edge. Candle COLOR does not
+    // matter — only that the close is outside the range, twice in a row.
+    bool bear_now  = close   < orb_low
+    bool bear_prev = close[1] < orb_low
+    bool bull_now  = close   > orb_high
+    bool bull_prev = close[1] > orb_high
     if not bear_brk and bear_now and bear_prev
         bear_brk := true
     if not bull_brk and bull_now and bull_prev

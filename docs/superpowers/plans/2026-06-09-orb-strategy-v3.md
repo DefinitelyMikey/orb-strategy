@@ -110,14 +110,14 @@ if pair_rg
 
 ## Task 4: Breakout — Two Consecutive Body-Closes Beyond ORB
 
-Replaces the old C1/C2 logic. `bear_brk` / `bull_brk` latch for the session.
+Replaces the old C1/C2 logic. Two consecutive body-closes beyond the ORB edge — **candle color does not matter**, only that the close is outside the range. `bear_brk` / `bull_brk` latch for the session.
 
 ```pine
 if orb_set and not in_orb_window
-    bool bear_now  = close   < orb_low  and close   < open
-    bool bear_prev = close[1] < orb_low and close[1] < open[1]
-    bool bull_now  = close   > orb_high and close   > open
-    bool bull_prev = close[1] > orb_high and close[1] > open[1]
+    bool bear_now  = close   < orb_low
+    bool bear_prev = close[1] < orb_low
+    bool bull_now  = close   > orb_high
+    bool bull_prev = close[1] > orb_high
     if not bear_brk and bear_now and bear_prev
         bear_brk := true
     if not bull_brk and bull_now and bull_prev
@@ -274,7 +274,7 @@ if pos_closed
 | Spec point | Covered In |
 |---|---|
 | 5m execution / ORB built natively from 5m bars (08:00–08:15) | Task 2 |
-| Two-consecutive-close breakout | Task 4 |
+| Two-consecutive-close breakout (color-agnostic) | Task 4 |
 | `gr_high` / `rg_low` pair tracking (+ pre-8AM fallback) | Task 3 |
 | Dual revisit (structural + ORB band, any order) | Task 5 |
 | Revisit can't be satisfied by the breakout candle | Task 5 (`*_brk[1]` gate) |

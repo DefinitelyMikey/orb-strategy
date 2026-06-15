@@ -31,7 +31,7 @@ These do double duty: a short's structural level = `gr_high` and its floor = `rg
 
 ### SELL Setup (Short)
 
-1. **Breakout** — two **consecutive** bearish bars both body-close below ORB low (`close < open AND close < ORB low`, twice in a row). Latches for the session.
+1. **Breakout** — two **consecutive** bars both body-close below ORB low (`close < ORB low`, twice in a row). **Candle color does not matter** — only the close being outside the range. Latches for the session.
 2. **Structural / liquidity level** = `gr_high` (high of most recent green→red pair). If no green→red pair forms after the break, falls back to the most recent **pre-8AM** `gr_high`.
 3. **Dual revisit** (any order, not necessarily the same candle; "revisit" = price touches): price touches the structural level (`high >= gr_high`) **AND** price touches into the ORB band (`high >= ORB low`). Evaluated only on bars *after* the breakout bar.
 4. **Floor** — once both revisits are done, lock `floor = rg_low` (low of most recent red→green pair).
@@ -40,7 +40,7 @@ These do double duty: a short's structural level = `gr_high` and its floor = `rg
 
 ### BUY Setup (Long) — exact mirror
 
-1. **Breakout** — two consecutive bullish bars both body-close above ORB high.
+1. **Breakout** — two consecutive bars both body-close above ORB high (any color).
 2. **Structural / liquidity level** = `rg_low` (low of most recent red→green pair), with pre-8AM fallback.
 3. **Dual revisit** — price touches the structural level (`low <= rg_low`) **AND** touches into the ORB band (`low <= ORB high`).
 4. **Ceiling** — lock `ceiling = gr_high` (high of most recent green→red pair).
@@ -120,7 +120,7 @@ Rules are identical for every instrument — no per-instrument max-trades or tim
 - `process_orders_on_close = true` — entry fills at the trigger candle's close to preserve 1:2 R:R
 - Candle-pair tracking runs **every bar** (including pre-8AM) so `gr_high` / `rg_low` are always the most recent pair levels and the pre-8AM fallback is automatic
 - Pair detection uses the prior bar: green→red = `close[1] > open[1] AND close < open`; red→green = `close[1] < open[1] AND close > open`
-- Breakout = two consecutive body-closes beyond the ORB edge; latches via `bear_brk` / `bull_brk`
+- Breakout = two consecutive body-closes beyond the ORB edge (close outside the range; candle color irrelevant); latches via `bear_brk` / `bull_brk`
 - Revisit is gated on `bear_brk[1]` / `bull_brk[1]` so the breakout candle itself can't satisfy it
 - Floor/ceiling locks at the moment both revisits complete, then keeps moving: re-syncs to each new red→green / green→red pair (up or down) AND bumps via piercing wicks (down for floor, up for ceiling) — most recent event per bar wins
 - Bearish = close < open, Bullish = close > open
@@ -175,7 +175,7 @@ Signal engine rewritten 2026-06-10. The old grading/pullback-depth/pivot-sweep s
 
 - Runs on **5m chart**; ORB built natively from the three 5m bars in the 08:00–08:15 window (no `request.security` — avoids the cross-timeframe lookahead delay that captured the prior session's ORB on the execution chart)
 - **Two tracked levels**: `gr_high` (most recent green→red pair high) and `rg_low` (most recent red→green pair low). Short structural = `gr_high`, short floor = `rg_low`; long structural = `rg_low`, long ceiling = `gr_high`
-- **Breakout**: two consecutive bearish (long: bullish) bars both body-close beyond the ORB edge; `bear_brk` / `bull_brk` latch for the session
+- **Breakout**: two consecutive bars both body-close beyond the ORB edge (close outside the range, any color); `bear_brk` / `bull_brk` latch for the session
 - **Dual revisit**: structural-level touch + ORB-band touch, any order, gated on the prior bar's breakout latch
 - **Floor / ceiling**: locks to `rg_low` / `gr_high` when both revisits complete, then keeps moving via two paths — re-sync to each new pair (`if floor_set and pair_rg: floor_short := rg_low`) and the piercing-wick bump (`low < floor AND close >= floor → floor := low`); same mirror for the ceiling
 - **Entry**: directional bar body-closes beyond the valid floor/ceiling, gated on `entry_count < max_trades` (=1) and `time_ok` (8:00 AM–12:00 PM ET)
