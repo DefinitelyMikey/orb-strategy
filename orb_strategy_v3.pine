@@ -19,7 +19,7 @@
 //    6. Entry    : a bearish bar body-closes below the valid floor
 //
 //  Trade mgmt: SL = entry candle body open | TP = 2:1 RR | BE at 1:1 RR
-//  Backtest  : $50,000 start | comm $0.72/side (Tradovate MES/MNQ all-in) | 5% margin
+//  Backtest  : $50K start | comm $0.80/side + 1-tick slippage (Tradovate MES/MNQ) | 5% margin
 //  ONE trade per day (all instruments), taken only between 8:00 AM–12:00 PM ET.
 //  After that trade CLOSES, all setup drawing stops (ORB box/mid keep going).
 // ═════════════════════════════════════════════════════════════════════════════
@@ -30,14 +30,14 @@
 
 // ── Backtest Settings ────────────────────────────────────────────────────────
 i_commission = input.float(
-    0.72, "Commission Per Side ($) — MES/MNQ", minval=0, step=0.01,
+    0.80, "Commission Per Side ($) — MES/MNQ", minval=0, step=0.01,
     group="⚙️ Backtest Settings",
-    tooltip="Display reference only. The LIVE value is baked into strategy(commission_value) below = $0.72/side: Tradovate all-in for MES & MNQ micros on the Free plan ($0.39 commission + $0.22 exchange + $0.09 clearing + $0.02 NFA). Round turn ≈ $1.44. Paid Tradovate plans are cheaper — override in Strategy Settings → Properties → Commission if needed.")
+    tooltip="Display reference only. The LIVE value is baked into strategy(commission_value) below = $0.80/side: a rounded-up all-in for MES & MNQ micros on Tradovate (Free-plan base ≈ $0.72 = $0.39 commission + $0.22 exchange + $0.09 clearing + $0.02 NFA). Round turn ≈ $1.60. Paid Tradovate plans are cheaper — override in Strategy Settings → Properties → Commission if needed.")
 
 i_slippage = input.int(
     1, "Slippage (Ticks)", minval=0,
     group="⚙️ Backtest Settings",
-    tooltip="Reference only — set via Strategy Settings → Properties → Slippage.")
+    tooltip="Display reference only. The LIVE value is baked into strategy(slippage=1) below = 1 tick per fill. Override in Strategy Settings → Properties → Slippage if needed.")
 
 // Trading rules are global (same for every instrument): one trade per day,
 // taken only between 8:00 AM and 12:00 PM ET. See TRADING WINDOW + DAILY CAP.
@@ -90,8 +90,8 @@ strategy("ORB Strategy V3", overlay=true, process_orders_on_close=true,
     pyramiding=2, max_bars_back=500, max_lines_count=500,
     default_qty_type=strategy.fixed, default_qty_value=1,
     initial_capital=50000,
-    commission_type=strategy.commission.cash_per_contract, commission_value=0.72,
-    margin_long=5, margin_short=5)
+    commission_type=strategy.commission.cash_per_contract, commission_value=0.80,
+    slippage=1, margin_long=5, margin_short=5)
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  TIME UTILITIES
