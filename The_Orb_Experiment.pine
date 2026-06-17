@@ -805,11 +805,11 @@ if i_optimize
         int    _bsl = _best_k >= 0 ? int(_best_k / N_TP) : 0
         int    _btp = _best_k >= 0 ? _best_k % N_TP      : 0
         string _hdr = "GOAL: " + i_goal + "\nBEST  SL×" + str.tostring(0.2*(_bsl+1), "#.#") + "  TP×" + str.tostring(0.2*(_btp+1), "#.#")
-        table.cell(opt_tbl, 0, 0, _hdr, text_size=size.normal, text_color=color.white, bgcolor=color.new(color.blue, 0))
+        table.cell(opt_tbl, 0, 0, _hdr, text_size=size.small, text_color=color.white, bgcolor=color.new(color.blue, 0))
         for c = 1 to N_TP
-            table.cell(opt_tbl, c, 0, "TP\n"+str.tostring(0.2*c, "#.#"), text_size=size.small, text_color=color.white, bgcolor=color.new(color.gray, 20))
+            table.cell(opt_tbl, c, 0, "TP\n"+str.tostring(0.2*c, "#.#"), text_size=size.tiny, text_color=color.white, bgcolor=color.new(color.gray, 20))
         for r = 1 to N_SL
-            table.cell(opt_tbl, 0, r, "SL "+str.tostring(0.2*r, "#.#"), text_size=size.small, text_color=color.white, bgcolor=color.new(color.gray, 20))
+            table.cell(opt_tbl, 0, r, "SL "+str.tostring(0.2*r, "#.#"), text_size=size.tiny, text_color=color.white, bgcolor=color.new(color.gray, 20))
 
         // ── Step 3: draw cells with heatmap + plateau ★ ──────────────────────────
         float _range = (_grid_max - _grid_min) > 0 ? (_grid_max - _grid_min) : 1.0
@@ -820,6 +820,8 @@ if i_optimize
                 int   _n  = array.get(a_trades, _k)
                 float _v  = array.get(a_metric, _k)
                 bool  _eligible = _n >= i_min_trades and array.get(a_losses, _k) >= i_min_losses
+
+                bool  _is_best = _k == _best_k and _best_k >= 0
 
                 // cell display text — metric only for eligible cells; grey cells show trade count
                 string _tx = na
@@ -832,6 +834,8 @@ if i_optimize
                         _tx := not na(_v) ? (_v >= 1e8 ? "∞" : str.tostring(_v, "#.##")) + "R" : "—"
                     else
                         _tx := not na(_v) ? str.tostring(_v, "#.#") + "%" : "—"
+                if _is_best
+                    _tx := "▶ " + _tx + " ◀"
 
                 // plateau detection: cell is stable if all 4 orthogonal neighbors
                 // are within 10% of its value (only for eligible cells)
@@ -869,7 +873,12 @@ if i_optimize
                     _bg := color.rgb(_r_ch, _g_ch, 0, 0)
                     _tc := color.white
 
-                table.cell(opt_tbl, c, r, _tx, text_size=size.small, text_color=_tc, bgcolor=_bg)
+                // best cell for the chosen goal — override with a bright cyan highlight
+                if _is_best
+                    _bg := color.new(color.aqua, 0)
+                    _tc := color.black
+
+                table.cell(opt_tbl, c, r, _tx, text_size=size.tiny, text_color=_tc, bgcolor=_bg)
 
 // Remove the optimizer table when the toggle is switched OFF
 if not i_optimize and not na(opt_tbl)
