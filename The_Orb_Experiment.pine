@@ -878,7 +878,7 @@ if i_optimize
                     _bg := color.new(color.aqua, 0)
                     _tc := color.black
 
-                table.cell(opt_tbl, c, r, _tx, text_size=size.tiny, text_color=_tc, bgcolor=_bg)
+                table.cell(opt_tbl, c, r, _tx, text_size=size.small, text_color=_tc, bgcolor=_bg)
 
 // Remove the optimizer table when the toggle is switched OFF
 if not i_optimize and not na(opt_tbl)
