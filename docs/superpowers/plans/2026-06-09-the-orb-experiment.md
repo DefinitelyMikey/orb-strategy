@@ -1,8 +1,10 @@
-# ORB Strategy V3 Implementation Plan
+# The ORB Experiment — Implementation Plan
 
-> **Revised 2026-06-10.** The original plan (grading A/B/C/2B/2C + pullback-depth + C1/C2 breakout + 3-bar pivot swings) was **superseded**. The signal engine was rewritten to a **breakout → dual-revisit → floor/ceiling-transfer** model with no grading. This document reflects the engine as actually shipped in `orb_strategy_v3.pine`.
+> **Revised 2026-06-10.** The original plan (grading A/B/C/2B/2C + pullback-depth + C1/C2 breakout + 3-bar pivot swings) was **superseded**. The signal engine was rewritten to a **breakout → dual-revisit → floor/ceiling-transfer** model with no grading. This document reflects the engine as actually shipped in `The_Orb_Experiment.pine`.
+>
+> **Renamed 2026-06-18.** The script (formerly `orb_strategy_v3.pine`) and this plan were renamed to **The ORB Experiment**; the optimizer was refined to R-based metrics + sample gates + heatmap (see Task 15).
 
-**Goal:** `orb_strategy_v3.pine` — a Pine Script v6 strategy that trades 5m ORB breakouts using a two-consecutive-close breakout, a dual-revisit gate (structural level + ORB band), and a transferring floor/ceiling trigger, with per-instrument trade limits and a level-line visual suite.
+**Goal:** `The_Orb_Experiment.pine` — a Pine Script v6 strategy that trades 5m ORB breakouts using a two-consecutive-close breakout, a dual-revisit gate (structural level + ORB band), and a transferring floor/ceiling trigger, with per-instrument trade limits and a level-line visual suite.
 
 **Architecture:** Single Pine Script file on a 5m chart. The ORB is built natively from the three 5m bars in the 08:00–08:15 window (no `request.security` — that introduced a cross-timeframe lookahead delay that captured the prior session's ORB). State in `var` variables reset on the 18:00 ET session boundary. Entries/exits via `strategy.entry()` / `strategy.exit()` with `process_orders_on_close=true`, `pyramiding=2`, `max_lines_count=500`.
 
@@ -24,7 +26,7 @@
 
 | File | Action | Responsibility |
 |------|--------|---------------|
-| `orb_strategy_v3.pine` | Create / maintain | Entire V3 strategy — single file |
+| `The_Orb_Experiment.pine` | Create / maintain | Entire strategy — single file |
 | `CLAUDE.md` | Spec of record | Sections 1–11 describe the shipped engine |
 
 ---
@@ -36,7 +38,7 @@
 > **No** grade inputs, **no** grade colors, **no** swing-marker toggle/colors, **no** pivot-lookback input — all removed.
 
 ```pine
-strategy("ORB Strategy V3", overlay=true, process_orders_on_close=true,
+strategy("The ORB Experiment", overlay=true, process_orders_on_close=true,
     pyramiding=2, max_bars_back=500, max_lines_count=500,
     default_qty_type=strategy.fixed, default_qty_value=1)
 ```
@@ -266,6 +268,35 @@ if pos_closed
 - [ ] `CLAUDE.md` sections 2/3/6/7/8/11 match the shipped logic (done 2026-06-10).
 - [ ] Full compile check on MNQ1! 5m.
 - [ ] Final commit + `git push origin master`.
+
+---
+
+## Task 13: Selectable ORB Duration + Cross-Timeframe Box (2026-06-16)
+
+- [x] **`i_orb_minutes` dropdown** (5/10/15/20/30/60 min). Engine window generalized from hardcoded `800/805/810` to minutes-of-day `[orb_start_min, orb_end_min)` (`orb_start_min=480`, `orb_end_min=480+i_orb_minutes`); finalizes on the `orb_end_min-5` bar. Engine stays native 5m.
+- [x] **Cross-timeframe ORB box**: box + midpoint render on any chart TF via a self-contained `f_orb_box()` pulled through `request.security(syminfo.tickerid, "5", …, lookahead_off)` (own 18:00 reset → no prior-session capture); drawn with `xloc.bar_time` + `time_close`. Trade engine + setup lines stay 5m-only (visual-only consistency).
+
+---
+
+## Task 14: Backtest Defaults Baked Into `strategy()` (2026-06-16)
+
+- [x] `initial_capital=50000`, `commission_type=cash_per_contract` + `commission_value=0.80` (Tradovate MES/MNQ all-in), `slippage=1`, `margin_long=5`/`margin_short=5` (so $50K affords 1 MNQ ≈ $61.7K notional). Literal constants compile fine in `strategy()`; only inputs don't.
+
+---
+
+## Task 15: SL/TP Optimizer — R-Based Metrics + Sample Gates + Heatmap (2026-06-18)
+
+Advisory grid (`i_optimize`, default OFF) testing every SL×TP multiple combo (SL 0.2→3.0, TP 0.2→5.0, step 0.2 = 15×25 = 375) on the SAME entries the strategy takes. Self-contained sim in size-375 `var` arrays; opens one sim per combo on each real entry (`opt_fire` hook, capturing `opt_islong` so it respects Reverse Signals); advances open sims each bar; renders a **center** table on `barstate.islast or barstate.islastconfirmedhistory`. Table created ONCE (no delete+recreate — that blanked it, the `CW10015` symptom). Never changes the strategy's own trades.
+
+- [x] **Fill model matches live engine**: SL/TP tick-snapped; entry = close ± slippage (market); TP = exact level (limit); SL/BE = level ± slippage (stop); EOD = close ± slippage; commission ×2. Intrabar SL/TP tie → SL (pessimistic). Run tester with **bar magnifier OFF** for closest agreement.
+- [x] **R-based metrics** (replaced dollar goals that drifted to grid edges): `1R = |entry − initial SL| × pointvalue`, fixed at entry. Goals (`i_goal`), all computed every bar:
+  - **Expectancy (R)** = `a_sumR / trades` (replaced "Most Profit")
+  - **Calmar (R)** = `a_equityR / a_maxddR` (total R ÷ worst R-drawdown; favors interior plateaus)
+  - **Win Rate %** = `100 × wins / trades`
+- [x] **Sample gates** (user inputs, quant rule-of-thumb tooltips): `i_min_trades` (default 30) + `i_min_losses` (default 5). Eligible only if `trades ≥ min AND losses ≥ min`; ineligible cells render grey + `—\n(n=XX)`.
+- [x] **Relative heatmap**: per-render min/max over eligible cells → green (best) → red (worst), fully opaque. **Plateau ★** when all 4 orthogonal neighbors within 10%. **Best cell** gets aqua bg + black text + `▶ ◀`.
+- [x] **Chart dimming** when optimizer ON (`bgcolor(color.new(color.black, 70))`).
+- [ ] **Open — sample size**: Essential plan gives ~28–29 total 5m trades, below the 30 gate. Grid *shape* is encouraging but not yet tradeable; needs more 5m history (plan upgrade or Python export). Higher chart TF does NOT add 5m samples (strategy re-executes on that TF).
 
 ---
 
